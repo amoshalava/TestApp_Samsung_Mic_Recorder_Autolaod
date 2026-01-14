@@ -1,0 +1,112 @@
+Downloading https://services.gradle.org/distributions/gradle-8.2-bin.zip
+............10%............20%............30%.............40%............50%............60%............70%.............80%............90%............100%
+
+Welcome to Gradle 8.2!
+
+Here are the highlights of this release:
+ - Kotlin DSL: new reference documentation, assignment syntax by default
+ - Kotlin DSL is now the default with Gradle init
+ - Improved suggestions to resolve errors in console output
+
+For more details see https://docs.gradle.org/8.2/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no configuration cache is available for tasks: build
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:buildKotlinToolingMetadata
+> Task :app:generateDebugResValues
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:generateDebugResources
+> Task :app:javaPreCompileDebug
+> Task :app:packageDebugResources
+> Task :app:mapDebugSourceSetPaths
+> Task :app:extractDeepLinksDebug
+> Task :app:checkDebugAarMetadata
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets
+> Task :app:desugarDebugFileDependencies
+> Task :app:mergeDebugResources
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:mergeDebugJniLibFolders
+> Task :app:parseDebugLocalResources
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:generateReleaseResValues
+> Task :app:checkReleaseAarMetadata
+> Task :app:generateReleaseResources
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:packageReleaseResources
+> Task :app:processDebugManifestForPackage
+> Task :app:parseReleaseLocalResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeReleaseResources
+> Task :app:checkDebugDuplicateClasses
+> Task :app:javaPreCompileRelease
+> Task :app:processDebugResources
+> Task :app:mergeExtDexDebug
+> Task :app:mergeLibDexDebug
+> Task :app:processReleaseResources
+> Task :app:processReleaseResources FAILED
+> Task :app:processDebugResources FAILED
+
+0 problems were found storing the configuration cache.
+
+See the complete report at file:///home/autocoder/generations/android-app/build/reports/configuration-cache/7gbc4rv9k9za1mkvpu8x4l187/92va2gauvo83kngn0uvlbba2b/configuration-cache-report.html
+
+FAILURE: Build completed with 2 failures.
+
+1: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':app:processReleaseResources'.
+> A failure occurred while executing com.android.build.gradle.internal.res.LinkApplicationAndroidResourcesTask$TaskAction
+   > Android resource linking failed
+     ERROR: /home/autocoder/generations/android-app/app/src/main/AndroidManifest.xml:15:5-55:19: AAPT: error: resource mipmap/ic_launcher (aka com.samsung.micrecorder:mipmap/ic_launcher) not found.
+         
+     ERROR: /home/autocoder/generations/android-app/app/src/main/AndroidManifest.xml:15:5-55:19: AAPT: error: resource mipmap/ic_launcher_round (aka com.samsung.micrecorder:mipmap/ic_launcher_round) not found.
+         
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+2: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':app:processDebugResources'.
+> A failure occurred while executing com.android.build.gradle.internal.res.LinkApplicationAndroidResourcesTask$TaskAction
+   > Android resource linking failed
+     ERROR: /home/autocoder/generations/android-app/app/src/main/AndroidManifest.xml:15:5-55:19: AAPT: error: resource mipmap/ic_launcher (aka com.samsung.micrecorder:mipmap/ic_launcher) not found.
+         
+     ERROR: /home/autocoder/generations/android-app/app/src/main/AndroidManifest.xml:15:5-55:19: AAPT: error: resource mipmap/ic_launcher_round (aka com.samsung.micrecorder:mipmap/ic_launcher_round) not found.
+         
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+BUILD FAILED in 3m 38s
+39 actionable tasks: 39 executed
+Configuration cache entry stored.

@@ -20,4 +20,7 @@
     <!-- Microphone status colors -->
     <color name="mic_active_blue">#03A9F4</color>
     <color name="mic_inactive_gray">#757575</color>
+
+    <!-- Launcher icon colors -->
+    <color name="ic_launcher_background">#000000</color>
 </resources>
