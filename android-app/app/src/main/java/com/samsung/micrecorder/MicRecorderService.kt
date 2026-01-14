@@ -7,12 +7,18 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.samsung.micrecorder.data.AppDatabase
 import com.samsung.micrecorder.data.TranscriptionHistory
@@ -55,20 +61,53 @@ class MicRecorderService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(tag, "Service onStartCommand")
 
-        // Start as foreground service
-        val notification = createNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                notificationId,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-            )
-        } else {
-            startForeground(notificationId, notification)
-        }
+        try {
+            // 1. Check if Microphone is available (not busy)
+            if (!isMicAvailable()) {
+                showToast("Microphone is currently in use by another app.")
+                saveError("Microphone busy or unavailable")
+                stopSelf()
+                return START_NOT_STICKY
+            }
 
-        // Start listening for wake word
-        startListening()
+            // 2. Start as foreground service
+            val notification = createNotification()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // Android 14+ requires specific foreground service type
+                startForeground(
+                    notificationId,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                )
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    notificationId,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                )
+            } else {
+                startForeground(notificationId, notification)
+            }
+
+            // 3. Start listening for wake word
+            startListening()
+
+        } catch (se: SecurityException) {
+            Log.e(tag, "SecurityException: Missing Microphone Permissions", se)
+            showToast("Error: Missing Microphone Permissions.")
+            saveError("Missing Microphone Permissions")
+            stopSelf()
+        } catch (ie: IllegalStateException) {
+            Log.e(tag, "IllegalStateException: Microphone busy or failed", ie)
+            showToast("Microphone is busy or failed to initialize.")
+            saveError("Microphone busy or failed to initialize")
+            stopSelf()
+        } catch (e: Exception) {
+            Log.e(tag, "Unexpected error in onStartCommand", e)
+            showToast("An unexpected error occurred.")
+            saveError("Unexpected error: ${e.message}")
+            stopSelf()
+        }
 
         return START_STICKY
     }
@@ -83,6 +122,53 @@ class MicRecorderService : Service() {
         speechRecognizer?.destroy()
         serviceScope.cancel()
         super.onDestroy()
+    }
+
+    /**
+     * Checks if the microphone is currently available and not in use by another app.
+     */
+    private fun isMicAvailable(): Boolean {
+        var recorder: AudioRecord? = null
+        return try {
+            val bufferSize = AudioRecord.getMinBufferSize(
+                44100,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            
+            if (bufferSize <= 0) return false
+
+            recorder = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                44100,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize
+            )
+
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                return false
+            }
+
+            recorder.startRecording()
+            val isRecording = recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING
+            recorder.stop()
+            isRecording
+        } catch (e: Exception) {
+            Log.e(tag, "Error checking mic availability", e)
+            false
+        } finally {
+            recorder?.release()
+        }
+    }
+
+    /**
+     * Shows a toast message on the main thread.
+     */
+    private fun showToast(message: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     /**
@@ -155,9 +241,15 @@ class MicRecorderService : Service() {
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
         }
 
-        speechRecognizer?.startListening(intent)
-        isListening = true
-        Log.d(tag, "Started listening")
+        try {
+            speechRecognizer?.startListening(intent)
+            isListening = true
+            Log.d(tag, "Started listening")
+        } catch (e: Exception) {
+            Log.e(tag, "Error starting speech recognizer", e)
+            saveError("Error starting speech recognizer: ${e.message}")
+            isListening = false
+        }
     }
 
     /**
@@ -208,13 +300,19 @@ class MicRecorderService : Service() {
                 SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> {
                     Log.d(tag, "Speech timeout, restarting")
                 }
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> {
+                    Log.e(tag, "Insufficient permissions for recognition")
+                    saveError("Insufficient permissions for recognition")
+                    stopSelf()
+                    return
+                }
                 else -> {
                     saveError("Recognition error: $error")
                 }
             }
 
-            // Restart listening after brief delay
-            android.os.Handler(mainLooper).postDelayed({
+            // Restart listening after brief delay if service is still running
+            Handler(Looper.getMainLooper()).postDelayed({
                 isWakeWordDetected = false
                 startListening()
             }, 500)
@@ -228,7 +326,7 @@ class MicRecorderService : Service() {
             matches?.let { processResults(it) }
 
             // Restart listening after processing
-            android.os.Handler(mainLooper).postDelayed({
+            Handler(Looper.getMainLooper()).postDelayed({
                 isWakeWordDetected = false
                 startListening()
             }, 500)

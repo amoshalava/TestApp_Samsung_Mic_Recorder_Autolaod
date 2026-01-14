@@ -3,8 +3,11 @@ package com.samsung.micrecorder
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,7 +38,7 @@ import java.util.*
 
 /**
  * Main activity for the Samsung Test Autoload Mic Record App.
- * Displays transcription history and app status.
+ * Displays transcription history and handles elevated permission requests.
  */
 class MainActivity : ComponentActivity() {
 
@@ -73,7 +77,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     MainScreen(
                         viewModel = viewModel,
-                        onRequestPermissions = { requestPermissions() }
+                        onRequestPermissions = { requestPermissions() },
+                        onRequestOverlay = { requestOverlayPermission() },
+                        onRequestBatteryExemption = { requestBatteryExemption() }
                     )
                 }
             }
@@ -84,10 +90,15 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Update permission status when returning to the app
         checkAndUpdatePermissions()
+        
+        // Try starting service again if everything was just granted
+        if (areAllPermissionsGranted()) {
+            startMicRecorderService()
+        }
     }
 
     /**
-     * Check if all required permissions are granted.
+     * Check if all required permissions (including special ones) are granted.
      */
     private fun areAllPermissionsGranted(): Boolean {
         val recordAudioGranted = ContextCompat.checkSelfPermission(
@@ -99,10 +110,16 @@ class MainActivity : ComponentActivity() {
                 this, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         } else {
-            true // Not required on Android < 13
+            true
         }
 
-        return recordAudioGranted && notificationGranted
+        val overlayGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(this)
+        } else {
+            true
+        }
+
+        return recordAudioGranted && notificationGranted && overlayGranted
     }
 
     /**
@@ -111,13 +128,11 @@ class MainActivity : ComponentActivity() {
     private fun checkAndUpdatePermissions() {
         val allGranted = areAllPermissionsGranted()
         viewModel.setPermissionsGranted(allGranted)
-
-        // Assume mic is active if service is running and permissions granted
         viewModel.setMicActive(allGranted)
     }
 
     /**
-     * Request required permissions.
+     * Request standard runtime permissions.
      */
     private fun requestPermissions() {
         val recordAudioGranted = ContextCompat.checkSelfPermission(
@@ -139,9 +154,38 @@ class MainActivity : ComponentActivity() {
                 return
             }
         }
+    }
 
-        // All permissions granted, start service
-        startMicRecorderService()
+    /**
+     * Navigate user to 'Appear on top' settings.
+     */
+    private fun requestOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
+        }
+    }
+
+    /**
+     * Directly request to ignore battery optimizations via system dialog.
+     */
+    private fun requestBatteryExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                // This triggers a direct system dialog asking the user to allow the app to ignore battery optimizations
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                // Fallback to the general settings if the direct request fails
+                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                startActivity(intent)
+            }
+        }
     }
 
     /**
@@ -149,10 +193,14 @@ class MainActivity : ComponentActivity() {
      */
     private fun startMicRecorderService() {
         val serviceIntent = Intent(this, MicRecorderService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            // Log error but don't crash the activity
         }
     }
 }
@@ -175,7 +223,9 @@ fun MicRecorderTheme(content: @Composable () -> Unit) {
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
-    onRequestPermissions: () -> Unit
+    onRequestPermissions: () -> Unit,
+    onRequestOverlay: () -> Unit,
+    onRequestBatteryExemption: () -> Unit
 ) {
     val historyList by viewModel.historyFlow.collectAsState(initial = emptyList())
     val isMicActive by viewModel.isMicActive.collectAsState()
@@ -186,22 +236,84 @@ fun MainScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Header Section
         AppHeader()
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Status Section
         StatusSection(
             isMicActive = isMicActive,
             arePermissionsGranted = arePermissionsGranted,
             onRequestPermissions = onRequestPermissions
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        ElevatedPermissionsSection(
+            onRequestOverlay = onRequestOverlay,
+            onRequestBatteryExemption = onRequestBatteryExemption
+        )
+
         Spacer(modifier = Modifier.height(24.dp))
 
-        // History Section
         HistorySection(historyList = historyList)
+    }
+}
+
+@Composable
+fun ElevatedPermissionsSection(
+    onRequestOverlay: () -> Unit,
+    onRequestBatteryExemption: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isOverlayGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        Settings.canDrawOverlays(context)
+    } else true
+    
+    val powerManager = context.getSystemService(android.content.Context.POWER_SERVICE) as PowerManager
+    val isBatteryOptimized = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        !powerManager.isIgnoringBatteryOptimizations(context.packageName)
+    } else false
+
+    if (!isOverlayGranted || isBatteryOptimized) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2C2C)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    "Autoload Setup Required",
+                    color = Color(0xFFFFC107),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                if (!isOverlayGranted) {
+                    PermissionRow(
+                        title = "Appear on top (Required for Autoload)",
+                        onClick = onRequestOverlay
+                    )
+                }
+                
+                if (isBatteryOptimized) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PermissionRow(
+                        title = "Disable Battery Optimization",
+                        onClick = onRequestBatteryExemption
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PermissionRow(title: String, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        TextButton(onClick = onClick) {
+            Text("Fix", color = Color(0xFF03A9F4))
+        }
     }
 }
 
@@ -233,7 +345,6 @@ fun StatusSection(
     onRequestPermissions: () -> Unit
 ) {
     Column {
-        // Microphone Status Indicator
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -258,7 +369,6 @@ fun StatusSection(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Permission Status Indicator
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -281,7 +391,6 @@ fun StatusSection(
                 modifier = Modifier.weight(1f)
             )
 
-            // Show button to request permissions if not granted
             if (!arePermissionsGranted) {
                 Button(
                     onClick = onRequestPermissions,
@@ -308,7 +417,6 @@ fun HistorySection(historyList: List<TranscriptionHistory>) {
         )
 
         if (historyList.isEmpty()) {
-            // Empty state
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -322,7 +430,6 @@ fun HistorySection(historyList: List<TranscriptionHistory>) {
                 )
             }
         } else {
-            // History list
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -357,9 +464,6 @@ fun HistoryItem(item: TranscriptionHistory) {
     }
 }
 
-/**
- * Format timestamp to readable date string.
- */
 fun formatTimestamp(timestamp: Long): String {
     val sdf = SimpleDateFormat("MMM dd, yyyy 'at' h:mm a", Locale.getDefault())
     return sdf.format(Date(timestamp))

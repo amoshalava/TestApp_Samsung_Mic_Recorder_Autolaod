@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Samsung Test Autoload Mic Record App</string>
-    <string name="app_version">v1.0.0</string>
+    <string name="app_version">v26.0114.5</string>
 
     <!-- Status messages -->
     <string name="status_listening">Listening…</string>
