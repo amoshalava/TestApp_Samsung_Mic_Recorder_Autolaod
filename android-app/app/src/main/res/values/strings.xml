@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Samsung Test Autoload Mic Record App</string>
+    <string name="app_version">v1.0.0</string>
+
+    <!-- Status messages -->
+    <string name="status_listening">Listening…</string>
+    <string name="status_mic_inactive">Mic Inactive</string>
+    <string name="status_permissions_granted">All permissions granted</string>
+    <string name="status_permissions_required">Permissions required</string>
+
+    <!-- History messages -->
+    <string name="history_empty">No transcriptions yet. Say \"SuperDuper\" to start.</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Recording Service</string>
+    <string name="notification_channel_description">Keeps the microphone recording service running</string>
+    <string name="notification_title">Samsung Mic Recorder</string>
+    <string name="notification_text">Listening for wake word…</string>
+
+    <!-- Permission messages -->
+    <string name="permission_microphone_rationale">Microphone access is required to listen for wake word and record audio.</string>
+    <string name="permission_notification_rationale">Notification permission is required to show the service status.</string>
+    <string name="permission_denied_permanently">Permission denied. Please grant in Settings.</string>
+
+    <!-- Error messages -->
+    <string name="error_speech_recognizer_unavailable">Speech recognition service is not available on this device.</string>
+    <string name="error_network">Network error. Please check your internet connection.</string>
+    <string name="error_audio">Audio recording error occurred.</string>
+    <string name="error_recognition_failed">Speech recognition failed. Please try again.</string>
+</resources>

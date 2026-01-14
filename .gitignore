@@ -1,0 +1,39 @@
+# Android Studio / Gradle
+.gradle/
+.idea/
+*.iml
+local.properties
+build/
+captures/
+.externalNativeBuild
+.cxx
+
+# Android
+*.apk
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+
+# Keystore files
+*.jks
+*.keystore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Feature tracking (local development only)
+features.db
+features.db-journal
+
+# Progress notes (local development only)
+claude-progress.txt
+
+# Agent lock file
+.agent.lock
+
+# Claude settings
+.claude_settings.json

@@ -1,0 +1,353 @@
+<project_specification>
+  <project_name>Samsung Test Autoload Mic Record App</project_name>
+
+  <overview>
+    An Android proof-of-concept application that demonstrates boot-triggered audio recording and keyword detection. The app automatically starts when the phone boots, continuously listens for the wake word "SuperDuper", and converts subsequent speech to text. It serves as a technical showcase for auto-start capabilities and microphone integration on Android devices.
+  </overview>
+
+  <technology_stack>
+    <platform>
+      <os>Android</os>
+      <min_sdk>26 (Android 8.0 Oreo)</min_sdk>
+      <target_sdk>34 (Android 14)</target_sdk>
+      <language>Kotlin</language>
+      <ide>Android Studio</ide>
+    </platform>
+    <architecture>
+      <pattern>MVVM (Model-View-ViewModel)</pattern>
+      <components>
+        <component>BroadcastReceiver for BOOT_COMPLETED intent</component>
+        <component>ForegroundService for continuous background operation</component>
+        <component>ViewModel for UI state management</component>
+        <component>Repository pattern for data access</component>
+      </components>
+    </architecture>
+    <speech_recognition>
+      <api>Android SpeechRecognizer API</api>
+      <language>English (en-US)</language>
+      <wake_word>SuperDuper</wake_word>
+      <silence_detection>2 seconds of silence to end capture</silence_detection>
+    </speech_recognition>
+    <data_persistence>
+      <database>Room Database (SQLite)</database>
+      <history_limit>20 entries maximum</history_limit>
+    </data_persistence>
+    <ui_framework>
+      <toolkit>Jetpack Compose</toolkit>
+      <design_system>Material Design 3</design_system>
+    </ui_framework>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      <requirement>Android Studio Hedgehog or newer</requirement>
+      <requirement>JDK 17 or higher</requirement>
+      <requirement>Android SDK with API 34</requirement>
+      <requirement>Physical Android device or emulator with microphone support</requirement>
+      <requirement>Google Play Services for SpeechRecognizer</requirement>
+    </environment_setup>
+  </prerequisites>
+
+  <feature_count>55</feature_count>
+
+  <permissions>
+    <permission name="RECEIVE_BOOT_COMPLETED">
+      <description>Required to start app on device boot</description>
+      <type>Normal</type>
+    </permission>
+    <permission name="RECORD_AUDIO">
+      <description>Required for microphone access</description>
+      <type>Dangerous - requires runtime permission</type>
+    </permission>
+    <permission name="FOREGROUND_SERVICE">
+      <description>Required to run service in foreground</description>
+      <type>Normal</type>
+    </permission>
+    <permission name="FOREGROUND_SERVICE_MICROPHONE">
+      <description>Required for foreground service using microphone (Android 14+)</description>
+      <type>Normal</type>
+    </permission>
+    <permission name="POST_NOTIFICATIONS">
+      <description>Required to show persistent notification (Android 13+)</description>
+      <type>Dangerous - requires runtime permission</type>
+    </permission>
+    <permission name="INTERNET">
+      <description>Required for online speech recognition</description>
+      <type>Normal</type>
+    </permission>
+  </permissions>
+
+  <core_features>
+    <boot_detection>
+      - App registers BroadcastReceiver for BOOT_COMPLETED action
+      - Service starts automatically when device finishes booting
+      - Works after both cold boot and restart
+      - Handles boot scenarios on different Android versions
+    </boot_detection>
+
+    <foreground_service>
+      - Persistent foreground service keeps app running
+      - Shows notification with "App is listening" status
+      - Service survives app being swiped from recents
+      - Proper lifecycle management (onCreate, onStartCommand, onDestroy)
+      - Handles service restart after system kills it
+    </foreground_service>
+
+    <wake_word_detection>
+      - Continuous listening for wake word "SuperDuper"
+      - Case-insensitive matching
+      - Filters out false positives from background noise
+      - Re-arms listening after each detection
+      - Handles partial matches gracefully
+    </wake_word_detection>
+
+    <speech_to_text>
+      - Activates speech capture after wake word detected
+      - Listens until 2 seconds of silence detected
+      - Converts captured audio to text using Android SpeechRecognizer
+      - Returns transcribed text to UI
+      - Handles multiple sequential commands
+    </speech_to_text>
+
+    <history_management>
+      - Stores last 20 transcriptions in Room database
+      - Each entry contains transcribed text and timestamp
+      - Automatically removes oldest entry when limit exceeded
+      - Persists across app restarts
+      - Ordered by most recent first
+    </history_management>
+
+    <permission_handling>
+      - Checks for required permissions on app launch
+      - Prompts for RECORD_AUDIO permission if not granted
+      - Prompts for POST_NOTIFICATIONS permission (Android 13+)
+      - Displays permission status indicator on UI
+      - Guides user to settings if permission permanently denied
+      - Handles permission state changes while app is running
+    </permission_handling>
+
+    <error_handling>
+      - Displays error message when speech recognition fails
+      - Handles network connectivity issues for online recognition
+      - Shows error in history list for failed transcriptions
+      - Graceful degradation when SpeechRecognizer unavailable
+      - Retry mechanism after transient failures
+    </error_handling>
+  </core_features>
+
+  <database_schema>
+    <tables>
+      <transcription_history>
+        - id: Long (Primary Key, auto-generated)
+        - text: String (transcribed content)
+        - timestamp: Long (Unix timestamp in milliseconds)
+        - isError: Boolean (true if this entry is an error message)
+      </transcription_history>
+    </tables>
+  </database_schema>
+
+  <ui_layout>
+    <main_structure>
+      Single-screen application with vertical layout:
+      1. App header with name and version
+      2. Status section with mic indicator and permission status
+      3. Scrollable history list filling remaining space
+    </main_structure>
+
+    <header_section>
+      - App name: "Samsung Test Autoload Mic Record App"
+      - Version number (e.g., "v1.0.0")
+      - Centered alignment
+    </header_section>
+
+    <status_section>
+      - Microphone status indicator (icon + text)
+        - Green/active state: "Listening..."
+        - Red/inactive state: "Mic Inactive"
+      - Permission status indicator
+        - Green checkmark: "All permissions granted"
+        - Yellow warning: "Permissions required" (tappable to request)
+    </status_section>
+
+    <history_section>
+      - Scrollable list (LazyColumn in Compose)
+      - Each item shows:
+        - Transcribed text (primary, black text)
+        - Timestamp (secondary, smaller, grayed out)
+        - Format: "Jan 15, 2025 at 2:30 PM"
+      - Error entries shown in red text
+      - Empty state: "No transcriptions yet. Say 'SuperDuper' to start."
+    </history_section>
+  </ui_layout>
+
+  <design_system>
+    <color_palette>
+      <primary>Light Blue (#03A9F4)</primary>
+      <primary_dark>Dark Blue (#0288D1)</primary_dark>
+      <background>Black (#000000)</background>
+      <surface>Dark Gray (#1E1E1E)</surface>
+      <text_primary>White (#FFFFFF)</text_primary>
+      <text_secondary>Gray (#9E9E9E)</text_secondary>
+      <success>Green (#4CAF50)</success>
+      <error>Red (#F44336)</error>
+      <warning>Yellow (#FFC107)</warning>
+      <mic_active>Light Blue (#03A9F4)</mic_active>
+      <mic_inactive>Gray (#757575)</mic_inactive>
+    </color_palette>
+
+    <typography>
+      <app_title>24sp, Bold, White</app_title>
+      <version>14sp, Regular, Gray</version>
+      <status_text>16sp, Medium, White</status_text>
+      <history_text>16sp, Regular, White</history_text>
+      <history_timestamp>12sp, Regular, Gray (#9E9E9E)</history_timestamp>
+      <error_text>16sp, Regular, Red</error_text>
+    </typography>
+
+    <spacing>
+      <screen_padding>16dp</screen_padding>
+      <section_spacing>24dp</section_spacing>
+      <item_spacing>12dp</item_spacing>
+      <icon_text_spacing>8dp</icon_text_spacing>
+    </spacing>
+  </design_system>
+
+  <notification_design>
+    <persistent_notification>
+      <title>Samsung Mic Recorder</title>
+      <content>Listening for wake word...</content>
+      <icon>Microphone icon</icon>
+      <priority>Low (to minimize intrusiveness)</priority>
+      <channel_id>mic_recorder_service</channel_id>
+      <channel_name>Recording Service</channel_name>
+    </persistent_notification>
+  </notification_design>
+
+  <implementation_steps>
+    <step number="1">
+      <title>Project Setup</title>
+      <tasks>
+        - Create new Android project in Android Studio
+        - Configure build.gradle with required dependencies
+        - Set up Kotlin and Jetpack Compose
+        - Configure Room database dependencies
+        - Set minimum SDK to 26, target SDK to 34
+      </tasks>
+    </step>
+
+    <step number="2">
+      <title>Permission Infrastructure</title>
+      <tasks>
+        - Declare all permissions in AndroidManifest.xml
+        - Implement permission checking utility
+        - Create permission request flow
+        - Build permission status UI component
+        - Handle permission denial scenarios
+      </tasks>
+    </step>
+
+    <step number="3">
+      <title>Boot Receiver</title>
+      <tasks>
+        - Create BootCompletedReceiver class
+        - Register receiver in AndroidManifest.xml
+        - Implement service start logic on boot
+        - Test boot detection on device
+      </tasks>
+    </step>
+
+    <step number="4">
+      <title>Foreground Service</title>
+      <tasks>
+        - Create MicRecorderService as ForegroundService
+        - Implement notification channel creation
+        - Build persistent notification
+        - Handle service lifecycle
+        - Implement service restart on kill
+      </tasks>
+    </step>
+
+    <step number="5">
+      <title>Speech Recognition</title>
+      <tasks>
+        - Initialize SpeechRecognizer in service
+        - Implement continuous listening mode
+        - Add wake word detection logic
+        - Handle speech-to-text conversion
+        - Implement silence detection (2 second timeout)
+        - Add error handling for recognition failures
+      </tasks>
+    </step>
+
+    <step number="6">
+      <title>Data Layer</title>
+      <tasks>
+        - Create TranscriptionHistory entity
+        - Implement Room database
+        - Create DAO with CRUD operations
+        - Implement 20-entry limit logic
+        - Create repository for data access
+      </tasks>
+    </step>
+
+    <step number="7">
+      <title>UI Implementation</title>
+      <tasks>
+        - Create main activity with Compose
+        - Build header component (name + version)
+        - Build status indicator components
+        - Implement history list with LazyColumn
+        - Apply light blue + black theme
+        - Add empty state message
+      </tasks>
+    </step>
+
+    <step number="8">
+      <title>Integration & Testing</title>
+      <tasks>
+        - Connect service to UI via ViewModel
+        - Test boot-to-listening flow
+        - Test wake word detection accuracy
+        - Test history persistence
+        - Test permission flows
+        - Test on multiple Android versions
+      </tasks>
+    </step>
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      - App starts automatically after device boot
+      - Microphone begins listening immediately after permissions granted
+      - Wake word "SuperDuper" is detected reliably
+      - Speech after wake word is converted to text accurately
+      - Transcription history displays correctly with timestamps
+      - History limited to last 20 entries
+      - Errors displayed appropriately in history
+    </functionality>
+
+    <user_experience>
+      - UI is clean and minimal as specified
+      - Status indicators clearly show app state
+      - Permission prompts are clear and helpful
+      - Light blue + black theme applied consistently
+      - History list scrolls smoothly
+      - Timestamps are readable and properly formatted
+    </user_experience>
+
+    <technical_quality>
+      - App runs stably in background without crashes
+      - Service survives being swiped from recents
+      - Memory usage remains reasonable over time
+      - Battery impact is acceptable for always-on listening
+      - Works on Android 8.0 through Android 14
+    </technical_quality>
+
+    <design_polish>
+      - Consistent color scheme throughout
+      - Proper spacing and alignment
+      - Professional appearance suitable for demonstration
+      - Notification is unobtrusive but visible
+    </design_polish>
+  </success_criteria>
+</project_specification>
