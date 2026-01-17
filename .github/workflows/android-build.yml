@@ -26,15 +26,10 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x android-app/gradlew
     
-    - name: Build Debug APK
+    - name: Build Debug and Release APKs
       run: |
         cd android-app
-        ./gradlew assembleDebug --stacktrace
-    
-    - name: Build Release APK
-      run: |
-        cd android-app
-        ./gradlew assembleRelease --stacktrace
+        ./gradlew assembleDebug assembleRelease --stacktrace
     
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
